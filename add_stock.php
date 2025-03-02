@@ -9,7 +9,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 if (!isset($_SESSION['user_name'])) {
-    $_SESSION['user_name'] = 'DR. İbrahim Taşkıran';
+    $_SESSION['user_name'] = 'user_name';
 }
 
 // Current date and time for logging

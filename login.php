@@ -1,27 +1,78 @@
 <?php
 session_start();
 require_once './config/config.php';
-//If User has already logged in, redirect to home page.
+require_once './helpers/helpers.php'; // randomString() fonksiyonu için
+
+// Kullanıcı zaten giriş yapmışsa ana sayfaya yönlendir
 if (isset($_SESSION['user_logged_in']) && $_SESSION['user_logged_in'] === TRUE) {
     header('Location:index.php');
+    exit;
 }
 
-//If user has previously selected "remember me option": 
+// Kullanıcı daha önce "beni hatırla" seçeneğini seçmişse:
 if (isset($_COOKIE['series_id']) && isset($_COOKIE['remember_token'])) {
     $series_id = filter_var($_COOKIE['series_id']);
     $remember_token = filter_var($_COOKIE['remember_token']);
     $db = getDbInstance();
-    $db->where('series_id', $series_id);
-    $db->where('remember_token', $remember_token);
-    $row = $db->getOne('admin_users');
     
-    if ($row) {
-        $_SESSION['user_logged_in'] = TRUE;
-        $_SESSION['admin_type'] = $row['admin_type'];
-        $_SESSION['user_name'] = $row['user_name'];
-        header('Location:index.php');
-        exit;
+    // cookie'de belirtilen kullanıcı tipine göre doğru tabloda ara
+    if (isset($_COOKIE['user_type']) && $_COOKIE['user_type'] === 'user') {
+        // users tablosunda kontrol et
+        $db->where('series_id', $series_id);
+        $row = $db->getOne('users');
+        
+        if ($row && password_verify($remember_token, $row['remember_token'])) {
+            $_SESSION['user_logged_in'] = TRUE;
+            $_SESSION['user_id'] = $row['id'];
+            $_SESSION['user_type'] = 'user';
+            $_SESSION['user_role'] = $row['role'];
+            $_SESSION['user_name'] = $row['user_name'];
+            $_SESSION['user_full_name'] = $row['name'];
+            
+            // Yeni token oluştur ve güncelle
+            $new_token = randomString(20);
+            $db->where('id', $row['id']);
+            $db->update('users', ['remember_token' => password_hash($new_token, PASSWORD_DEFAULT)]);
+            setcookie('remember_token', $new_token, time() + 86400 * 30, '/');
+            
+            header('Location:index.php');
+            exit;
+        }
+    } else {
+        // admin_accounts tablosunda kontrol et (varsayılan)
+        $db->where('series_id', $series_id);
+        $row = $db->getOne('admin_accounts');
+        
+        if ($row && password_verify($remember_token, $row['remember_token']) && 
+            (!isset($row['expires']) || $row['expires'] > date('Y-m-d H:i:s'))) {
+            
+            $_SESSION['user_logged_in'] = TRUE;
+            $_SESSION['user_id'] = $row['id'];
+            $_SESSION['user_type'] = 'admin';
+            $_SESSION['admin_type'] = $row['admin_type'];
+            $_SESSION['user_name'] = $row['user_name'];
+            
+            // Yeni token oluştur ve güncelle
+            $new_token = randomString(20);
+            $expiry_time = date('Y-m-d H:i:s', strtotime('+30 days'));
+            
+            $db->where('id', $row['id']);
+            $db->update('admin_accounts', [
+                'remember_token' => password_hash($new_token, PASSWORD_DEFAULT),
+                'expires' => $expiry_time
+            ]);
+            
+            setcookie('remember_token', $new_token, time() + 86400 * 30, '/');
+            
+            header('Location:index.php');
+            exit;
+        }
     }
+    
+    // Eşleşme bulunamadı veya token geçersiz - çerezleri temizle
+    setcookie('series_id', '', time() - 3600, '/');
+    setcookie('remember_token', '', time() - 3600, '/');
+    setcookie('user_type', '', time() - 3600, '/');
 }
 
 include_once 'includes/header.php';
@@ -57,19 +108,23 @@ include_once 'includes/header.php';
                 <button type="submit" class="btn btn-success btn-block">Giriş Yap</button>
             </div>
             <div class="panel-footer">
-                <div class="text-center">
-                    <p class="hackathon-info">
-                        Bu sistem Hayvan Sağlığı Teknolojileri Hackathonu Ön Yarışması için tasarlanmıştır.<br>
-                        <span class="text-info">
-                            <strong>Demo Giriş Bilgileri:</strong><br>
-                            Kullanıcı Adı: kkuhackathon25<br>
-                            Şifre: admin
-                        </span>
-                    </p>
-                    <hr style="margin: 10px 0;">
-                    <p><small>Son Güncelleme: <?php echo date('d.m.Y H:i', strtotime('2025-03-01 02:11:47')); ?></small></p>
-                </div>
-            </div>
+    <div class="text-center">
+        <p class="hackathon-info">
+            Bu sistem Hayvan Sağlığı Teknolojileri Hackathonu Ön Yarışması için tasarlanmıştır.
+        </p>
+        <span class="text-info">
+            <strong>Demo Giriş Bilgileri:</strong><br>
+            <strong style="color: #337ab7;">Yönetici Girişi:</strong><br>
+            Kullanıcı Adı: kkuhackathon25<br>
+            Şifre: admin<br><br>
+            <strong style="color: #5cb85c;">Veteriner Girişi:</strong><br>
+            Kullanıcı Adı: test<br>
+            Şifre: 123456
+        </span>
+        <hr style="margin: 10px 0;">
+        <p><small>Son Güncelleme: <?php echo date('d.m.Y H:i', strtotime('2025-03-02 20:25:05')); ?></small></p>
+    </div>
+</div>
         </div>
     </form>
 </div>

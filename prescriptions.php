@@ -38,7 +38,17 @@ $starting_limit = ($page - 1) * $records_per_page;
 // Join tables for detailed information
 $db->join("patients p", "pr.patient_id = p.id", "LEFT");
 // Manuel olarak kullanıcı adını ayarlama
-$current_user = 'Dr. İbrahim';
+if ($_SESSION['user_type'] === 'admin') {
+    $db2 = getDbInstance();
+    $db2->where('id', $_SESSION['user_id']);
+    $user_data = $db2->getOne('admin_accounts');
+    $current_user = $user_data ? htmlspecialchars($user_data['name']) : 'DR. İbrahim Taşkıran';
+} else {
+    $db2 = getDbInstance();
+    $db2->where('id', $_SESSION['user_id']);
+    $user_data = $db2->getOne('users');
+    $current_user = $user_data ? htmlspecialchars($user_data['name']) : 'DR. İbrahim Taşkıran';
+}
 
 // Apply search filters
 if ($search_str) {
@@ -65,7 +75,7 @@ if ($filter_col && $order_type) {
 
 // Get total records count
 $db->pageLimit = $records_per_page;
-$prescriptions = $db->arraybuilder()->paginate("prescriptions pr", $page, "pr.*, p.name as patient_name, '$current_user' as doctor_name");
+$prescriptions = $db->arraybuilder()->paginate("prescriptions pr", $page, "pr.*, p.name as patient_name, '"{$current_user}' as doctor_name");
 $total_records = $db->totalCount;
 $total_pages = $db->totalPages;
 

@@ -8,9 +8,9 @@ if (!isset($_SESSION['user_id'])) {
     $_SESSION['user_id'] = 1;
 }
 
-if (!isset($_SESSION['user_name'])) {
-    $_SESSION['user_name'] = 'DR. İbrahim Taşkıran';
-}
+// if (!isset($_SESSION['user_name'])) {
+//     $_SESSION['user_name'] = 'user_name';
+// }
 
 // Current date and time for logging
 $current_date = date('Y-m-d H:i:s');

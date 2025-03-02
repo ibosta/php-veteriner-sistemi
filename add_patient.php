@@ -3,6 +3,15 @@ session_start();
 require_once './config/config.php';
 require_once 'includes/auth_validate.php';
 
+// Oturum değişkenleri
+if (!isset($_SESSION['user_id'])) {
+    $_SESSION['user_id'] = 1;
+}
+
+if (!isset($_SESSION['user_name'])) {
+    $_SESSION['user_name'] = 'ibosta';
+}
+
 // Get DB instance
 $db = getDbInstance();
 
@@ -17,8 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'owner_name' => $_POST['owner_name'],
         'owner_phone' => $_POST['owner_phone'],
         'notes' => $_POST['notes'],
-        'created_at' => '2025-03-01 01:44:02',
-        'user_id' => $_SESSION['user_id']
+        'created_at' => '2025-03-02 10:35:07'
+        // user_id kaldırıldı
     );
     
     $id = $db->insert('patients', $data_to_db);
@@ -28,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: patients.php');
         exit();
     } else {
-        $_SESSION['failure'] = "Hasta eklenirken hata oluştu";
+        $_SESSION['failure'] = "Hasta eklenirken hata oluştu: " . $db->getLastError();
     }
 }
 

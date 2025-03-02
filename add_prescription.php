@@ -7,7 +7,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 if (!isset($_SESSION['user_name'])) {
-    $_SESSION['user_name'] = ' DR. İbrahim Taşkıran'; // Varsayılan kullanıcı adı
+    $_SESSION['user_name'] = 'user_name'; // Varsayılan kullanıcı adı
 }
 
 require_once './config/config.php';
