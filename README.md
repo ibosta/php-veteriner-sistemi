@@ -9,6 +9,11 @@ Bu proje, veteriner hekimlerin hasta hayvan bilgilerini yönetmesine, reçete ol
 
 ![Sistem Görüntüsü](photo.png)
 ## 👁️ Demo
+
+![Demo Hatası](https://img.shields.io/badge/Hata-Demo%20aktif%20degil-red)
+
+(Hosting kaynaklı Cpanel'e giremiyorum bu yüzden sql tabloları geçerli değil, dosyaları yükledim aktif olduğu an güncelleyeceğim.)
+
 https://ibosta.tech/kkuhackathon25
 
 ## 📋 Özellikler
