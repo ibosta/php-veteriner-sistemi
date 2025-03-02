@@ -75,7 +75,7 @@ if ($filter_col && $order_type) {
 
 // Get total records count
 $db->pageLimit = $records_per_page;
-$prescriptions = $db->arraybuilder()->paginate("prescriptions pr", $page, "pr.*, p.name as patient_name, '"{$current_user}' as doctor_name");
+$prescriptions = $db->arraybuilder()->paginate("prescriptions pr", $page, "pr.*, p.name as patient_name, '{$current_user}' as doctor_name");
 $total_records = $db->totalCount;
 $total_pages = $db->totalPages;
 
