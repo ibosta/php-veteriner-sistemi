@@ -30,16 +30,20 @@ $items_per_page = 10;
 // Toplam ilaç sayısını al
 $total_count = $db->getValue("medications", "count(*)");
 
-// Arama parametresi
-$search_str = filter_input(INPUT_GET, 'search', FILTER_SANITIZE_STRING);
+// Arama parametresi - Replacing FILTER_SANITIZE_STRING with htmlspecialchars
+$search_str = filter_input(INPUT_GET, 'search');
+$search_str = $search_str !== null ? htmlspecialchars($search_str, ENT_QUOTES, 'UTF-8') : '';
 
 if ($search_str) {
     $db->where('name', '%' . $search_str . '%', 'LIKE');
 }
 
-// Sıralama için kolon ve yön
-$order_by = filter_input(INPUT_GET, 'order_by', FILTER_SANITIZE_STRING);
-$order_dir = filter_input(INPUT_GET, 'order_dir', FILTER_SANITIZE_STRING);
+// Sıralama için kolon ve yön - Replacing FILTER_SANITIZE_STRING with htmlspecialchars
+$order_by = filter_input(INPUT_GET, 'order_by');
+$order_by = $order_by !== null ? htmlspecialchars($order_by, ENT_QUOTES, 'UTF-8') : '';
+
+$order_dir = filter_input(INPUT_GET, 'order_dir');
+$order_dir = $order_dir !== null ? htmlspecialchars($order_dir, ENT_QUOTES, 'UTF-8') : '';
 
 if ($order_by && $order_dir) {
     $db->orderBy($order_by, $order_dir);

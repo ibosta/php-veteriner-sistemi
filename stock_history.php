@@ -14,10 +14,17 @@ $db = getDbInstance();
 $medication_id = filter_input(INPUT_GET, 'medication_id', FILTER_VALIDATE_INT);
 
 // Filtreleme değişkenleri
-$filter_date_start = filter_input(INPUT_GET, 'date_start', FILTER_SANITIZE_STRING);
-$filter_date_end = filter_input(INPUT_GET, 'date_end', FILTER_SANITIZE_STRING);
-$filter_type = filter_input(INPUT_GET, 'type', FILTER_SANITIZE_STRING);
-$filter_reference = filter_input(INPUT_GET, 'reference', FILTER_SANITIZE_STRING);
+$filter_date_start = filter_input(INPUT_GET, 'date_start');
+$filter_date_start = $filter_date_start !== null ? htmlspecialchars($filter_date_start, ENT_QUOTES, 'UTF-8') : '';
+
+$filter_date_end = filter_input(INPUT_GET, 'date_end');
+$filter_date_end = $filter_date_end !== null ? htmlspecialchars($filter_date_end, ENT_QUOTES, 'UTF-8') : '';
+
+$filter_type = filter_input(INPUT_GET, 'type');
+$filter_type = $filter_type !== null ? htmlspecialchars($filter_type, ENT_QUOTES, 'UTF-8') : '';
+
+$filter_reference = filter_input(INPUT_GET, 'reference');
+$filter_reference = $filter_reference !== null ? htmlspecialchars($filter_reference, ENT_QUOTES, 'UTF-8') : '';
 
 // Varsayılan tarih aralığı (son 30 gün)
 if (!$filter_date_start) {

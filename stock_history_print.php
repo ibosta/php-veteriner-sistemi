@@ -4,12 +4,22 @@ require_once './config/config.php';
 require_once 'includes/auth_validate.php';
 
 // Parametre alma
-$format = filter_input(INPUT_GET, 'format', FILTER_SANITIZE_STRING);
+$format = filter_input(INPUT_GET, 'format');
+$format = $format !== null ? htmlspecialchars($format, ENT_QUOTES, 'UTF-8') : '';
+
 $medication_id = filter_input(INPUT_GET, 'medication_id', FILTER_VALIDATE_INT);
-$filter_date_start = filter_input(INPUT_GET, 'date_start', FILTER_SANITIZE_STRING);
-$filter_date_end = filter_input(INPUT_GET, 'date_end', FILTER_SANITIZE_STRING);
-$filter_type = filter_input(INPUT_GET, 'type', FILTER_SANITIZE_STRING);
-$filter_reference = filter_input(INPUT_GET, 'reference', FILTER_SANITIZE_STRING);
+
+$filter_date_start = filter_input(INPUT_GET, 'date_start');
+$filter_date_start = $filter_date_start !== null ? htmlspecialchars($filter_date_start, ENT_QUOTES, 'UTF-8') : '';
+
+$filter_date_end = filter_input(INPUT_GET, 'date_end');
+$filter_date_end = $filter_date_end !== null ? htmlspecialchars($filter_date_end, ENT_QUOTES, 'UTF-8') : '';
+
+$filter_type = filter_input(INPUT_GET, 'type');
+$filter_type = $filter_type !== null ? htmlspecialchars($filter_type, ENT_QUOTES, 'UTF-8') : '';
+
+$filter_reference = filter_input(INPUT_GET, 'reference');
+$filter_reference = $filter_reference !== null ? htmlspecialchars($filter_reference, ENT_QUOTES, 'UTF-8') : '';
 
 // Varsayılan tarih aralığı
 if (!$filter_date_start) {
@@ -199,7 +209,7 @@ $title = $medication ? $medication['name'] . " - Stok Hareketleri" : "Tüm Stok 
     
     <div class="print-header">
         <div class="print-logo">
-            <img src="assets/images/clinic_logo.png" alt="Klinik Logo" style="max-width: 100px;">
+            <img src="assets/images/clinic_logo.svg" alt="Klinik Logo" style="max-width: 100px;">
         </div>
         <div class="print-title">
             <h1><?php echo $title; ?></h1>
@@ -342,7 +352,7 @@ $title = $medication ? $medication['name'] . " - Stok Hareketleri" : "Tüm Stok 
                         ?>
                     </td>
                     
-                    <td><?php echo htmlspecialchars($row['notes']); ?></td>
+                    <td><?php echo htmlspecialchars($row['notes'] ?? ''); ?></td>
                     <td><?php echo htmlspecialchars($row['user_name']); ?></td>
                 </tr>
             <?php endforeach; ?>
@@ -439,7 +449,7 @@ $title = $medication ? $medication['name'] . " - Stok Hareketleri" : "Tüm Stok 
                         ?>
                     </td>
                     
-                    <td><?php echo htmlspecialchars($row['notes']); ?></td>
+                    <td><?php echo htmlspecialchars($row['notes'] ?? ''); ?></td>
                     <td><?php echo htmlspecialchars($row['user_name']); ?></td>
                 </tr>
             <?php endforeach; ?>

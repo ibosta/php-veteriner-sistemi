@@ -175,6 +175,39 @@ include_once('includes/header.php');
                 </a>
             </div>
         </div>
+        
+        <!-- Yazdırma düğmesi paneli -->
+        <div class="col-lg-3 col-md-6">
+            <div class="panel panel-info">
+                <div class="panel-heading">
+                    <div class="row">
+                        <div class="col-xs-3">
+                            <i class="fa fa-print fa-5x"></i>
+                        </div>
+                        <div class="col-xs-9 text-right">
+                            <div class="huge"><i class="fa fa-file-pdf-o"></i></div>
+                            <div>Raporu Yazdır</div>
+                        </div>
+                    </div>
+                </div>
+                <?php
+                // Yazdırma sayfasına geçiş için URL parametreleri
+                $print_url = 'stock_history_print.php?';
+                if ($start_date) $print_url .= 'date_start=' . urlencode($start_date) . '&';
+                if ($end_date) $print_url .= 'date_end=' . urlencode($end_date) . '&';
+                if ($medication_id) $print_url .= 'medication_id=' . urlencode($medication_id) . '&';
+                if ($action_type) $print_url .= 'type=' . urlencode($action_type) . '&';
+                $print_url .= 'format=pdf';
+                ?>
+                <a href="<?php echo $print_url; ?>" target="_blank">
+                    <div class="panel-footer">
+                        <span class="pull-left">PDF olarak yazdır</span>
+                        <span class="pull-right"><i class="fa fa-arrow-circle-right"></i></span>
+                        <div class="clearfix"></div>
+                    </div>
+                </a>
+            </div>
+        </div>
     </div>
 
     <!-- Filtreleme Formu -->
@@ -214,6 +247,41 @@ include_once('includes/header.php');
                 </div>
                 <button type="submit" class="btn btn-primary">Filtrele</button>
                 <a href="stock_report.php" class="btn btn-default">Sıfırla</a>
+                
+                <!-- Yazdırma düğmeleri ekle -->
+                <div class="pull-right">
+                    <?php
+                    // Yazdırma sayfasına geçiş için URL parametreleri
+                    $pdf_url = 'stock_history_print.php?';
+                    $excel_url = 'stock_history_print.php?';
+                    
+                    if ($start_date) {
+                        $pdf_url .= 'date_start=' . urlencode($start_date) . '&';
+                        $excel_url .= 'date_start=' . urlencode($start_date) . '&';
+                    }
+                    if ($end_date) {
+                        $pdf_url .= 'date_end=' . urlencode($end_date) . '&';
+                        $excel_url .= 'date_end=' . urlencode($end_date) . '&';
+                    }
+                    if ($medication_id) {
+                        $pdf_url .= 'medication_id=' . urlencode($medication_id) . '&';
+                        $excel_url .= 'medication_id=' . urlencode($medication_id) . '&';
+                    }
+                    if ($action_type) {
+                        $pdf_url .= 'type=' . urlencode($action_type) . '&';
+                        $excel_url .= 'type=' . urlencode($action_type) . '&';
+                    }
+                    
+                    $pdf_url .= 'format=pdf';
+                    $excel_url .= 'format=excel';
+                    ?>
+                    <a href="<?php echo $pdf_url; ?>" target="_blank" class="btn btn-danger">
+                        <i class="fa fa-file-pdf-o"></i> PDF
+                    </a>
+                    <a href="<?php echo $excel_url; ?>" target="_blank" class="btn btn-success">
+                        <i class="fa fa-file-excel-o"></i> Excel
+                    </a>
+                </div>
             </form>
         </div>
     </div>
