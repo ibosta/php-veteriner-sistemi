@@ -1,7 +1,7 @@
 # 🐾 Veteriner Reçete Sistemi
 
 ![PHP Veteriner Sistemi](https://img.shields.io/badge/PHP-Veteriner%20Sistemi-blue)
-[![Version](https://img.shields.io/badge/Version-1.1.1-green)](#versiyon-güncelleme-notları)
+[![Version](https://img.shields.io/badge/Version-1.1.1-green)](#-versiyon-güncelleme-notları)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 ![Durum](https://img.shields.io/badge/Durum-Çalışıyor-Green)
 
@@ -169,6 +169,7 @@ Veritabanı yapısı, aşağıdaki ana tablolardan oluşmaktadır:
 
 Tam veritabanı yapısı için proje kök dizinindeki `veteriner_db.sql` dosyasını inceleyebilirsiniz.
 
+<a name="version-updates"></a>
 ## 📄 Versiyon Güncelleme Notları
 ### Version 1.1.0
    - PHP 7.4.33 Sürümünden 8.2.0 Sürümüne geçildi.
