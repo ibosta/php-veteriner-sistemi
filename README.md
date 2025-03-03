@@ -1,7 +1,7 @@
 # 🐾 Veteriner Reçete Sistemi
 
 ![PHP Veteriner Sistemi](https://img.shields.io/badge/PHP-Veteriner%20Sistemi-blue)
-![Version](https://img.shields.io/badge/Version-1.1.0-green)
+[![Version](https://img.shields.io/badge/Version-1.1.1-green)](#versiyon-güncelleme-notları)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 ![Durum](https://img.shields.io/badge/Durum-Çalışıyor-Green)
 
@@ -152,7 +152,7 @@ Proje, modüler bir yapıda tasarlanmış olup birbirinden bağımsız çalışa
 
 Sistem, MysqliDb veritabanı sınıfını kullanarak veritabanı işlemlerini gerçekleştirir ve bootstrap tabanlı responsive bir arayüz sunar.
 
-## 📄 Veritabanı Yapısı
+## 🔩 Veritabanı Yapısı
 
 Veritabanı yapısı, aşağıdaki ana tablolardan oluşmaktadır:
 
@@ -168,6 +168,14 @@ Veritabanı yapısı, aşağıdaki ana tablolardan oluşmaktadır:
 - **stock_entry_items**: Stok giriş kalemleri
 
 Tam veritabanı yapısı için proje kök dizinindeki `veteriner_db.sql` dosyasını inceleyebilirsiniz.
+
+## 📄 Versiyon Güncelleme Notları
+### Version 1.1.0
+   - PHP 7.4.33 Sürümünden 8.2.0 Sürümüne geçildi.
+   - Uyumsuzluk hataları giderildi.
+### Version 1.1.1
+   - Stok Tablosu Tarih aralığı indirme eklendi. Stok takibi iyileştirildi.
+![Versiyon 1.1.1](version1-1-1.png)
 
 ## 📜 Lisans
 
