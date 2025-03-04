@@ -1,43 +1,58 @@
 <?php
 session_start();
 
-// Oturum değişkenlerini ayarlama
-if (!isset($_SESSION['user_id'])) {
-    $_SESSION['user_id'] = 1; // Varsayılan kullanıcı ID'si
-}
-
-if (!isset($_SESSION['user_name'])) {
-    $_SESSION['user_name'] = 'user_name'; // Varsayılan kullanıcı adı
-}
-
+// Kullanıcı oturum kontrolü
 require_once './config/config.php';
 require_once 'includes/auth_validate.php';
 
-// Get DB instance
+// Veritabanı bağlantısı
 $db = getDbInstance();
 
-// Get patient ID from URL (if any)
+// Oturum açmış kullanıcının bilgilerini al
+// Kullanıcı hem users hem de admin_accounts tablosunda kontrol edilecek
+$user_id = $_SESSION['user_id'] ?? 0;
+$user_name = $_SESSION['user_name'] ?? '';
+
+if (empty($user_id) || empty($user_name)) {
+    $_SESSION['failure'] = "Oturum süreniz dolmuş. Lütfen tekrar giriş yapın.";
+    header('Location: login.php');
+    exit();
+}
+
+// Admin mi yoksa normal kullanıcı mı olduğunu kontrol et
+$is_admin_account = false;
+if (isset($_SESSION['admin_type'])) {
+    $is_admin_account = true;
+}
+
+// Hasta ID'sini URL'den al
 $patient_id = filter_input(INPUT_GET, 'patient_id', FILTER_VALIDATE_INT);
 
-// Get all medications with stock info for dropdown
+// İlaçları getir
 $db->join("stock s", "m.id = s.medication_id", "LEFT");
 $db->orderBy("m.name", "ASC");
 $medications = $db->get('medications m', null, 'm.id, m.name, m.unit, s.quantity, s.id as stock_id');
 
-// Get all patients for dropdown (if patient_id is not provided)
+// Hastaları getir
 if (!$patient_id) {
     $patients = $db->get('patients');
+} else {
+    // Hasta seçilmişse bilgilerini getir
+    $db->where('id', $patient_id);
+    $selected_patient = $db->getOne('patients');
+    
+    if (!$selected_patient) {
+        $patient_id = null;
+    }
 }
 
-// Handle form submission
+// Form kontrolü
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Sanitize inputs
     $patient_id = filter_input(INPUT_POST, 'patient_id', FILTER_VALIDATE_INT);
-    $diagnosis = filter_input(INPUT_POST, 'diagnosis', FILTER_SANITIZE_STRING);
-    $diagnosis_details = filter_input(INPUT_POST, 'diagnosis_details', FILTER_SANITIZE_STRING);
-    $notes = filter_input(INPUT_POST, 'notes', FILTER_SANITIZE_STRING);
+    $diagnosis = filter_var($_POST['diagnosis'] ?? '', FILTER_UNSAFE_RAW);
+    $diagnosis_details = filter_var($_POST['diagnosis_details'] ?? '', FILTER_UNSAFE_RAW);
+    $notes = filter_var($_POST['notes'] ?? '', FILTER_UNSAFE_RAW);
     
-    // Validate required fields
     $errors = array();
     
     if (!$patient_id) {
@@ -48,19 +63,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = "Tanı bilgisi gereklidir.";
     }
     
-    // Get medication data from form
-    $medication_ids = isset($_POST['medication_id']) ? $_POST['medication_id'] : array();
-    $dosages = isset($_POST['dosage']) ? $_POST['dosage'] : array();
-    $daily_usages = isset($_POST['daily_usage']) ? $_POST['daily_usage'] : array();
-    $usage_periods = isset($_POST['usage_period']) ? $_POST['usage_period'] : array();
-    $medication_notes = isset($_POST['medication_notes']) ? $_POST['medication_notes'] : array();
+    $medication_ids = $_POST['medication_id'] ?? array();
+    $dosages = $_POST['dosage'] ?? array();
+    $daily_usages = $_POST['daily_usage'] ?? array();
+    $usage_periods = $_POST['usage_period'] ?? array();
+    $medication_notes = $_POST['medication_notes'] ?? array();
     
-    // At least one medication is required
-    if (empty($medication_ids) || count($medication_ids) < 1) {
+    if (empty($medication_ids)) {
         $errors[] = "En az bir ilaç eklenmelidir.";
     }
     
-    // Check medication fields
     foreach ($medication_ids as $key => $medication_id) {
         if (empty($dosages[$key])) {
             $errors[] = "Tüm ilaçlar için doz bilgisi gereklidir.";
@@ -76,113 +88,105 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
-    // If no errors, save prescription
     if (empty($errors)) {
         try {
-            // Start transaction
             $db->startTransaction();
             
-            // Save prescription
+            // Geçerli sistem tarihi
+            $current_datetime = date('Y-m-d H:i:s');
+            
+            // Kullanıcı türüne göre reçete kayıt verileri oluştur
+            // Admin hesabı kullanıyorsa user_id olarak 1 (admin kullanıcısı) kullan
+            $effective_user_id = $is_admin_account ? 1 : $user_id;
+            
+            // Reçete kaydet
             $prescription_data = array(
                 'patient_id' => $patient_id,
-                'user_id' => $_SESSION['user_id'],
+                'user_id' => $effective_user_id,
                 'diagnosis' => $diagnosis,
                 'diagnosis_details' => $diagnosis_details ?: null,
                 'notes' => $notes ?: null,
-                'created_at' => date('Y-m-d H:i:s')
+                'created_at' => $current_datetime
             );
             
             $prescription_id = $db->insert('prescriptions', $prescription_data);
             
             if (!$prescription_id) {
-                throw new Exception("Reçete kaydedilemedi.");
+                throw new Exception("Reçete kaydedilirken bir hata oluştu.");
             }
             
-            // Save prescription items
-foreach ($medication_ids as $key => $medication_id) {
-    if (!empty($medication_id)) {
-        // İlaç stoğunu kontrol et
-        $db->where('medication_id', $medication_id);
-        $stock = $db->getOne('stock');
+            // İlaçları kaydet
+            foreach ($medication_ids as $key => $medication_id) {
+                if (empty($medication_id)) continue;
+                
+                // İlaç stoğunu kontrol et
+                $db->where('medication_id', $medication_id);
+                $stock = $db->getOne('stock');
 
-        if (!$stock) {
-            throw new Exception("İlaç için stok kaydı bulunamadı.");
-        }
-
-        // İlaç miktarı reçete için yeterli mi kontrol et
-        $required_quantity = floatval($dosages[$key]);
-
-        if ($stock['quantity'] < $required_quantity) {
-            // İlacın adını al
-            $db->where('id', $medication_id);
-            $medication = $db->getOne('medications', 'name');
-            throw new Exception("'{$medication['name']}' ilacı için stok yetersiz. Mevcut: {$stock['quantity']}, Gerekli: {$required_quantity}");
-        }
-
-        // İlacı stoktan düş
-        $new_quantity = $stock['quantity'] - $required_quantity;
-        $update_data = array('quantity' => $new_quantity, 'updated_at' => date('Y-m-d H:i:s'));
-
-        $db->where('id', $stock['id']);
-        $update_result = $db->update('stock', $update_data);
-        
-        if (!$update_result) {
-            throw new Exception("Stok güncellenirken hata oluştu.");
-        }
-                    
-                    // Stok hareketi kaydet
-                    $stock_history_data = array(
-                        'medication_id' => $medication_id,
-                        'type' => 'subtract',
-                        'quantity_change' => $required_quantity,
-                        'reference_type' => 'prescription',
-                        'reference_id' => $prescription_id,
-                        // user_id satırını kaldırdık
-                        'notes' => "Reçete: Hasta ID #{$patient_id}, Tanı: {$diagnosis}, Kullanıcı: " . $_SESSION['user_name'],
-                        'created_at' => date('Y-m-d H:i:s')
-                    );
-                    
-                    $stock_history_id = $db->insert('stock_history', $stock_history_data);
-                    
-                    if (!$stock_history_id) {
-                        throw new Exception("Stok hareketi kaydedilemedi.");
-                    }
-                    
-                    // Reçete kalemini kaydet
-                    $item_data = array(
-                        'prescription_id' => $prescription_id,
-                        'medication_id' => $medication_id,
-                        'dosage' => $dosages[$key],
-                        'daily_usage' => $daily_usages[$key],
-                        'usage_period' => $usage_periods[$key],
-                        'notes' => isset($medication_notes[$key]) ? $medication_notes[$key] : null
-                    );
-                    
-                    $item_id = $db->insert('prescription_items', $item_data);
-                    
-                    if (!$item_id) {
-                        throw new Exception("Reçete ilaçları kaydedilemedi.");
-                    }
+                if (!$stock) {
+                    throw new Exception("İlaç için stok kaydı bulunamadı.");
+                }
+                
+                // Stok kontrolü
+                $required_quantity = floatval($dosages[$key]);
+                
+                if ($stock['quantity'] < $required_quantity) {
+                    $db->where('id', $medication_id);
+                    $medication = $db->getOne('medications', 'name');
+                    throw new Exception("'{$medication['name']}' ilacı için stok yetersiz. Mevcut: {$stock['quantity']}, Gerekli: {$required_quantity}");
+                }
+                
+                // Stoktan düş
+                $new_quantity = $stock['quantity'] - $required_quantity;
+                $update_data = array(
+                    'quantity' => $new_quantity, 
+                    'updated_at' => $current_datetime
+                );
+                
+                $db->where('id', $stock['id']);
+                if (!$db->update('stock', $update_data)) {
+                    throw new Exception("Stok güncellenirken bir hata oluştu.");
+                }
+                
+                // Stok hareketi kaydet
+                $stock_history_data = array(
+                    'medication_id' => $medication_id,
+                    'type' => 'subtract',
+                    'quantity_change' => $required_quantity,
+                    'reference_type' => 'prescription',
+                    'reference_id' => $prescription_id,
+                    'user_id' => $effective_user_id,
+                    'notes' => "Reçete: Hasta ID #{$patient_id}, Tanı: {$diagnosis}, Kullanıcı: " . $user_name,
+                    'created_at' => $current_datetime
+                );
+                
+                if (!$db->insert('stock_history', $stock_history_data)) {
+                    throw new Exception("Stok hareketi kaydedilemedi.");
+                }
+                
+                // Reçete kalemleri
+                $item_data = array(
+                    'prescription_id' => $prescription_id,
+                    'medication_id' => $medication_id,
+                    'dosage' => $dosages[$key],
+                    'daily_usage' => $daily_usages[$key],
+                    'usage_period' => $usage_periods[$key],
+                    'notes' => isset($medication_notes[$key]) ? $medication_notes[$key] : null
+                );
+                
+                if (!$db->insert('prescription_items', $item_data)) {
+                    throw new Exception("Reçete ilaçları kaydedilemedi.");
                 }
             }
             
-// Commit transaction
-$db->commit();
-
-$_SESSION['success'] = "Yeni reçete başarıyla kaydedildi.";
-
-// Reçete detayına yönlendir
-header('Location: prescription_details.php?id=' . $prescription_id . '&refresh=1');
-exit();
-            
+            $db->commit();
             $_SESSION['success'] = "Yeni reçete başarıyla kaydedildi.";
-            header('Location: prescription_details.php?id=' . $prescription_id);
+            header('Location: prescription_details.php?id=' . $prescription_id . '&refresh=1');
             exit();
             
         } catch (Exception $e) {
-            // Roll back transaction on error
             $db->rollback();
-            $_SESSION['failure'] = "Hata: " . $e->getMessage();
+            $_SESSION['failure'] = "Reçete kaydedilirken bir hata oluştu. Lütfen tekrar deneyin.";
         }
     }
 }
@@ -207,14 +211,11 @@ include_once 'includes/header.php';
                         <h3 class="panel-title">Hasta ve Tanı Bilgileri</h3>
                     </div>
                     <div class="panel-body">
-                        <!-- Patient Selection -->
+                        <!-- Hasta Seçimi -->
                         <div class="form-group">
                             <label for="patient_id">Hasta *</label>
-                            <?php if ($patient_id): ?>
-                                <?php 
-                                $db->where('id', $patient_id);
-                                $selected_patient = $db->getOne('patients'); 
-                                ?>
+                            
+                            <?php if ($patient_id && isset($selected_patient)): ?>
                                 <input type="hidden" name="patient_id" value="<?php echo $patient_id; ?>">
                                 <p class="form-control-static">
                                     <?php echo htmlspecialchars($selected_patient['name']); ?> 
@@ -224,29 +225,31 @@ include_once 'includes/header.php';
                             <?php else: ?>
                                 <select name="patient_id" id="patient_id" class="form-control" required>
                                     <option value="">-- Hasta Seçiniz --</option>
-                                    <?php foreach ($patients as $patient): ?>
-                                        <option value="<?php echo $patient['id']; ?>">
-                                            <?php echo htmlspecialchars($patient['name']); ?> 
-                                            (<?php echo htmlspecialchars($patient['owner_name']); ?>)
-                                        </option>
-                                    <?php endforeach; ?>
+                                    <?php if (isset($patients) && is_array($patients)): ?>
+                                        <?php foreach ($patients as $patient): ?>
+                                            <option value="<?php echo $patient['id']; ?>">
+                                                <?php echo htmlspecialchars($patient['name']); ?> 
+                                                (<?php echo htmlspecialchars($patient['owner_name']); ?>)
+                                            </option>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </select>
                             <?php endif; ?>
                         </div>
                         
-                        <!-- Diagnosis -->
+                        <!-- Tanı -->
                         <div class="form-group">
                             <label for="diagnosis">Tanı *</label>
                             <input type="text" name="diagnosis" id="diagnosis" class="form-control" required maxlength="255">
                         </div>
                         
-                        <!-- Diagnosis Details -->
+                        <!-- Tanı Detayları -->
                         <div class="form-group">
                             <label for="diagnosis_details">Tanı Detayları</label>
                             <textarea name="diagnosis_details" id="diagnosis_details" class="form-control" rows="4"></textarea>
                         </div>
                         
-                        <!-- Notes -->
+                        <!-- Notlar -->
                         <div class="form-group">
                             <label for="notes">Notlar</label>
                             <textarea name="notes" id="notes" class="form-control" rows="3"></textarea>
@@ -264,69 +267,70 @@ include_once 'includes/header.php';
                     <div class="panel-body">
                         <div class="alert alert-info">
                             <p>Tarih: <?php echo date('d.m.Y'); ?></p>
-                            <p>Oluşturan: <?php echo htmlspecialchars($_SESSION['user_name']); ?></p>
+                            <p>Oluşturan: <?php echo htmlspecialchars($user_name); ?></p>
                         </div>
                         
                         <div class="form-group">
                             <label>İlaçlar *</label>
                             <div id="medications_container">
-                            <div class="medication-item well">
-    <div class="row">
-        <div class="col-md-12">
-            <div class="form-group">
-                <label>İlaç Adı *</label>
-                <select name="medication_id[]" class="form-control medication-select" required>
-                    <option value="">-- İlaç Seçiniz --</option>
-                    <?php foreach ($medications as $medication): ?>
-                        <option value="<?php echo $medication['id']; ?>" 
-                                data-unit="<?php echo htmlspecialchars($medication['unit']); ?>"
-                                data-stock="<?php echo $medication['quantity'] ?? 0; ?>">
-                            <?php echo htmlspecialchars($medication['name']); ?> 
-                            (Stok: <?php echo ($medication['quantity'] ?? 0) . ' ' . $medication['unit']; ?>)
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-        </div>
-        <div class="col-md-5">
-            <div class="form-group">
-                <label>Doz *</label>
-                <div class="input-group">
-                    <input type="number" name="dosage[]" class="form-control" required 
-                           step="0.01" min="0.01">
-                    <span class="input-group-addon medication-unit">birim</span>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-7">
-            <div class="form-group">
-                <label>Günlük Kullanım *</label>
-                <input type="text" name="daily_usage[]" class="form-control" 
-                       placeholder="Örn: Günde 3x1" required>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="form-group">
-                <label>Kullanım Süresi *</label>
-                <input type="text" name="usage_period[]" class="form-control" 
-                       placeholder="Örn: 7 gün" required>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="form-group">
-                <label>Notlar</label>
-                <input type="text" name="medication_notes[]" class="form-control" 
-                       placeholder="Kullanım notu">
-            </div>
-        </div>
-        <div class="col-md-12">
-            <button type="button" class="btn btn-danger btn-sm remove-medication" 
-                    style="display:none;">
-                <i class="fa fa-trash"></i> İlacı Kaldır
-            </button>
-        </div>
-    </div>
-</div>
+                                <div class="medication-item well">
+                                    <div class="row">
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label>İlaç Adı *</label>
+                                                <select name="medication_id[]" class="form-control medication-select" required>
+                                                    <option value="">-- İlaç Seçiniz --</option>
+                                                    <?php if (isset($medications) && is_array($medications)): ?>
+                                                        <?php foreach ($medications as $medication): ?>
+                                                            <option value="<?php echo $medication['id']; ?>" 
+                                                                    data-unit="<?php echo htmlspecialchars($medication['unit']); ?>"
+                                                                    data-stock="<?php echo $medication['quantity'] ?? 0; ?>">
+                                                                <?php echo htmlspecialchars($medication['name']); ?> 
+                                                                (Stok: <?php echo ($medication['quantity'] ?? 0) . ' ' . $medication['unit']; ?>)
+                                                            </option>
+                                                        <?php endforeach; ?>
+                                                    <?php endif; ?>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <div class="form-group">
+                                                <label>Doz *</label>
+                                                <div class="input-group">
+                                                    <input type="number" name="dosage[]" class="form-control" required 
+                                                           step="0.01" min="0.01">
+                                                    <span class="input-group-addon medication-unit">birim</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-7">
+                                            <div class="form-group">
+                                                <label>Günlük Kullanım *</label>
+                                                <input type="text" name="daily_usage[]" class="form-control" 
+                                                       placeholder="Örn: Günde 3x1" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label>Kullanım Süresi *</label>
+                                                <input type="text" name="usage_period[]" class="form-control" 
+                                                       placeholder="Örn: 7 gün" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label>Notlar</label>
+                                                <input type="text" name="medication_notes[]" class="form-control" 
+                                                       placeholder="Kullanım notu">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-12">
+                                        <button type="button" class="btn btn-danger btn-sm remove-medication" style="display:none;">
+    <i class="fa fa-trash"></i> İlacı Kaldır
+</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <button type="button" id="add_medication" class="btn btn-success">
                                 <i class="fa fa-plus"></i> Yeni İlaç Ekle
@@ -341,16 +345,29 @@ include_once 'includes/header.php';
             <div class="col-md-12">
                 <div class="form-group text-center">
                     <a href="prescriptions.php" class="btn btn-default">İptal</a>
-                    <button type="submit" class="btn btn-primary">
-                    Reçeteyi Kaydet
-                </button>
+                    <button type="submit" class="btn btn-primary">Reçeteyi Kaydet</button>
+                </div>
             </div>
         </div>
     </form>
 </div>
 
+<!-- Select2 için CSS ve JS bağlantıları -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 <script>
 $(document).ready(function() {
+    // Sayfa yüklendiğinde select2'yi başlat
+    try {
+        $('.medication-select').select2({
+            placeholder: "-- İlaç Seçiniz --",
+            width: '100%'
+        });
+    } catch (e) {
+        console.error("Select2 initialization failed:", e);
+    }
+    
     // Handle adding new medications
     $('#add_medication').click(function() {
         // İlk ilaç öğesini kopyala
@@ -371,13 +388,14 @@ $(document).ready(function() {
         $('#medications_container').append(newItem);
         
         // Select2'yi destroy edip yeniden initialize et
-        newItem.find('.medication-select').select2('destroy').select2({
-            placeholder: "-- İlaç Seçiniz --",
-            width: '100%'
-        });
-        
-        // Tüm ilaçların stok miktarlarını güncelle
-        updateMedicationStocks();
+        try {
+            newItem.find('.medication-select').select2({
+                placeholder: "-- İlaç Seçiniz --",
+                width: '100%'
+            });
+        } catch (e) {
+            console.error("Select2 initialization failed for new item:", e);
+        }
     });
 
     // Handle removing medications
@@ -427,8 +445,8 @@ $(document).ready(function() {
         
         var warningElement = medicationItem.find('.stock-warning');
         if (warningElement.length === 0) {
-            warningElement = $('<div class="stock-warning text-danger mt-2"></div>');
-            $(this).parent().append(warningElement);
+            warningElement = $('<div class="stock-warning text-danger"></div>');
+            $(this).parent().after(warningElement);
         }
         
         if (!isNaN(dosage) && !isNaN(stock)) {
@@ -485,16 +503,8 @@ $(document).ready(function() {
             return false;
         }
     });
-
-    // İlk yüklemede select2'yi initialize et
-    $('.medication-select').select2({
-        placeholder: "-- İlaç Seçiniz --",
-        width: '100%'
-    });
 });
 </script>
-<!-- Header kısmına ekleyin -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <?php include_once 'includes/footer.php'; ?>
+                                                

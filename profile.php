@@ -94,7 +94,7 @@ include_once 'includes/header.php';
                 </div>
                 <div class="panel-body">
                     <div class="text-center">
-                        <img src="assets/images/<?php echo $user_type === 'admin' ? 'vet' : 'user'; ?>-profile.png" class="img-circle" alt="Profil Fotoğrafı" style="width: 150px; height: 150px; margin-bottom: 15px;">
+                        <img src="assets/images/<?php echo $user_type === 'admin' ? 'vet' : 'vet'; ?>-profile.png" class="img-circle" alt="Profil Fotoğrafı" style="width: 150px; height: 150px; margin-bottom: 15px;">
                     </div>
                     <table class="table">
                         <tr>
