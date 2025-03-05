@@ -1,6 +1,6 @@
 # 🐾 Veteriner Reçete Sistemi
 
-![PHP Veteriner Sistemi](https://img.shields.io/badge/PHP-Veteriner%20Sistemi-blue)
+![PHP Veteriner Sistemi](https://img.shields.io/badge/PHP-8.2.0-blue)
 [![Version](https://img.shields.io/badge/Version-1.1.1-green)](#-versiyon-güncelleme-notları)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 ![Durum](https://img.shields.io/badge/Durum-Çalışıyor-Green)
@@ -10,7 +10,7 @@ Bu proje, veteriner hekimlerin hasta hayvan bilgilerini yönetmesine, reçete ol
 ![Sistem Görüntüsü](photo.png)
 ## 👁️ Demo
 
-![Demo Hatası](https://img.shields.io/badge/Hata-Demo%20aktif%20Edildi-Green)
+![Demo](https://img.shields.io/badge/Demo-Aktif-Green)
 
 https://ibosta.tech/kkuhackathon25
 
